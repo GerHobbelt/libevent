@@ -89,7 +89,8 @@ set(EVENT_ABI_LIBVERSION_AGE       0)
 # equals to RELEASE in Makefile.am
 set(EVENT_PACKAGE_RELEASE 2.2)
 
-set(EVENT_NUMERIC_VERSION 0x02020001)
+# The last number is development version or not.
+set(EVENT_NUMERIC_VERSION 0x02020100)
 
 # only a subset of names can be used, defaults to "beta"
 set(EVENT_STAGE_NAME ${EVENT_VERSION_STAGE})
