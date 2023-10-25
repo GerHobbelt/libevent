@@ -34,11 +34,16 @@ endif()
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release
         CACHE STRING "Set build type to Debug or Release (default Release)" FORCE)
+    message(STATUS "Set CMAKE_BUILD_TYPE to Release (default)")
 endif()
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 
-if(NOT DEFINED CMAKE_DEBUG_POSTFIX)
-  set(CMAKE_DEBUG_POSTFIX d)
+# Usually it is OK to define it unconditionally, but the problem is that we use
+# CMAKE_DEBUG_POSTFIX in *.pc.in
+if (CMAKE_BUILD_TYPE_LOWER STREQUAL "debug")
+    if(NOT DEFINED CMAKE_DEBUG_POSTFIX)
+        set(CMAKE_DEBUG_POSTFIX d)
+    endif()
 endif()
 
 set(EVENT__LIBRARY_TYPE DEFAULT CACHE STRING
@@ -1725,5 +1730,6 @@ message(STATUS "CMAKE_C_COMPILER:         ${CMAKE_C_COMPILER} (id ${CMAKE_C_COMP
 message(STATUS "CMAKE_AR:                 ${CMAKE_AR}")
 message(STATUS "CMAKE_RANLIB:             ${CMAKE_RANLIB}")
 message(STATUS "CMAKE_INSTALL_PREFIX:     ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "CMAKE_DEBUG_POSTFIX:      ${CMAKE_DEBUG_POSTFIX}")
 message(STATUS "")
 
