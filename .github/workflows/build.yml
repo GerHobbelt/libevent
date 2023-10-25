@@ -25,6 +25,8 @@ on:
       - 'whatsnew*'
       - 'LICENSE'
 
+permissions: read-all
+
 jobs:
   linux-cmake-job:
     runs-on: ${{ matrix.os }}
@@ -32,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-18.04]
+        os: [ubuntu-20.04]
         EVENT_MATRIX:
           - DIST
           - NONE
@@ -169,7 +171,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-18.04]
+        os: [ubuntu-20.04]
         include:
           # openssl 3.0
           - os: ubuntu-22.04
