@@ -265,6 +265,7 @@ if test "x$ac_cv_header_sys_time_h" = "xyes"; then
 	AC_MSG_CHECKING(for timeradd in sys/time.h)
 	AC_EGREP_CPP(yes,
 [
+#define _DEFAULT_SOURCE
 #include <sys/time.h>
 #ifdef timeradd
  yes
@@ -279,6 +280,7 @@ if test "x$ac_cv_header_sys_time_h" = "xyes"; then
 	AC_MSG_CHECKING(for timercmp in sys/time.h)
 	AC_EGREP_CPP(yes,
 [
+#define _DEFAULT_SOURCE
 #include <sys/time.h>
 #ifdef timercmp
  yes
@@ -293,6 +295,7 @@ if test "x$ac_cv_header_sys_time_h" = "xyes"; then
 	AC_MSG_CHECKING(for timerclear in sys/time.h)
 	AC_EGREP_CPP(yes,
 [
+#define _DEFAULT_SOURCE
 #include <sys/time.h>
 #ifdef timerclear
  yes
@@ -307,6 +310,7 @@ if test "x$ac_cv_header_sys_time_h" = "xyes"; then
 	AC_MSG_CHECKING(for timerisset in sys/time.h)
 	AC_EGREP_CPP(yes,
 [
+#define _DEFAULT_SOURCE
 #include <sys/time.h>
 #ifdef timerisset
  yes
@@ -504,6 +508,7 @@ if test "x$ac_cv_header_sys_event_h" = "xyes"; then
 		AC_MSG_CHECKING(for working kqueue)
 		AC_TRY_RUN(
 #include <sys/types.h>
+#define _DEFAULT_SOURCE
 #include <sys/time.h>
 #include <sys/event.h>
 #include <stdio.h>

@@ -35,6 +35,7 @@
 #endif
 #include <sys/types.h>
 #if !defined(_WIN32) && defined(EVENT__HAVE_SYS_TIME_H)
+#define _DEFAULT_SOURCE
 #include <sys/time.h>
 #endif
 #include <sys/queue.h>
