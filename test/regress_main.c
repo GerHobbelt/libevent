@@ -33,14 +33,6 @@
 #include <fcntl.h>
 #endif
 
-/* move_pthread_to_realtime_scheduling_class() */
-#ifdef EVENT__HAVE_MACH_MACH_H
-#include <mach/mach.h>
-#endif
-#ifdef EVENT__HAVE_MACH_MACH_TIME_H
-#include <mach/mach_time.h>
-#endif
-
 #if defined(__APPLE__) && defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__)
 #if (__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060 && \
     __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1070)
@@ -89,12 +81,10 @@
 
 #include "event2/event-config.h"
 #include "regress.h"
-#include "regress_thread.h"
 #include "tinytest.h"
 #include "tinytest_macros.h"
 #include "../iocp-internal.h"
 #include "../event-internal.h"
-#include "../evthread-internal.h"
 
 struct evutil_weakrand_state test_weakrand_state;
 
@@ -144,34 +134,27 @@ regress_make_tmpfile(const void *data, size_t datalen, char **filename_out)
 		return (-1);
 	if (write(fd, data, datalen) != (int)datalen) {
 		close(fd);
-		unlink(tmpfilename);
 		return (-1);
 	}
 	lseek(fd, 0, SEEK_SET);
-	*filename_out = strdup(tmpfilename);
+	/* remove it from the file system */
+	unlink(tmpfilename);
 	return (fd);
 #else
 	/* XXXX actually delete the file later */
-	WCHAR tmpfilepath[MAX_PATH];
-	WCHAR tmpfilelongpath[MAX_PATH];
-	WCHAR tmpfilewideame[MAX_PATH];
+	char tmpfilepath[MAX_PATH];
 	char tmpfilename[MAX_PATH];
 	DWORD r, written;
 	int tries = 16;
 	HANDLE h;
-	r = GetTempPathW(MAX_PATH, tmpfilepath);
-	if (r > MAX_PATH || r == 0)
-		return (-1);
-	r = GetLongPathNameW(tmpfilepath, tmpfilelongpath, MAX_PATH);
+	r = GetTempPathA(MAX_PATH, tmpfilepath);
 	if (r > MAX_PATH || r == 0)
 		return (-1);
 	for (; tries > 0; --tries) {
-		r = GetTempFileNameW(tmpfilelongpath, L"LIBEVENT", 0, tmpfilewideame);
-		if (r == 0) {
-			int err = GetLastError();
+		r = GetTempFileNameA(tmpfilepath, "LIBEVENT", 0, tmpfilename);
+		if (r == 0)
 			return (-1);
-		}
-		h = CreateFileW(tmpfilewideame, GENERIC_READ | GENERIC_WRITE,
+		h = CreateFileA(tmpfilename, GENERIC_READ|GENERIC_WRITE,
 		    0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (h != INVALID_HANDLE_VALUE)
 			break;
@@ -179,9 +162,6 @@ regress_make_tmpfile(const void *data, size_t datalen, char **filename_out)
 	if (tries == 0)
 		return (-1);
 	written = 0;
-	WideCharToMultiByte(
-		CP_ACP, 0, tmpfilewideame, MAX_PATH, tmpfilename,
-		MAX_PATH, NULL, NULL);
 	*filename_out = strdup(tmpfilename);
 	WriteFile(h, data, (DWORD)datalen, &written, NULL);
 	/* Closing the fd returned by this function will indeed close h. */
@@ -206,76 +186,23 @@ ignore_log_cb(int s, const char *msg)
 {
 }
 
-/**
- * Put into the real time scheduling class for better timers latency.
- * https://developer.apple.com/library/archive/technotes/tn2169/_index.html#//apple_ref/doc/uid/DTS40013172-CH1-TNTAG6000
- */
-#if defined(__APPLE__)
-static void move_pthread_to_realtime_scheduling_class(pthread_t pthread)
-{
-	mach_timebase_info_data_t info;
-	mach_timebase_info(&info);
-
-	const uint64_t NANOS_PER_MSEC = 1000000ULL;
-	double clock2abs =
-		((double)info.denom / (double)info.numer) * NANOS_PER_MSEC;
-
-	thread_time_constraint_policy_data_t policy;
-	policy.period      = 0;
-	policy.computation = (uint32_t)(5 * clock2abs); // 5 ms of work
-	policy.constraint  = (uint32_t)(10 * clock2abs);
-	policy.preemptible = FALSE;
-
-	int kr = thread_policy_set(pthread_mach_thread_np(pthread),
-		THREAD_TIME_CONSTRAINT_POLICY,
-		(thread_policy_t)&policy,
-		THREAD_TIME_CONSTRAINT_POLICY_COUNT);
-	if (kr != KERN_SUCCESS) {
-		mach_error("thread_policy_set:", kr);
-		exit(1);
-	}
-}
-
-void thread_setup(THREAD_T pthread)
-{
-	move_pthread_to_realtime_scheduling_class(pthread);
-}
-#else /** \__APPLE__ */
-void thread_setup(THREAD_T pthread) {}
-#endif /** \!__APPLE__ */
-
-
-void *
+static void *
 basic_test_setup(const struct testcase_t *testcase)
 {
 	struct event_base *base = NULL;
 	evutil_socket_t spair[2] = { -1, -1 };
 	struct basic_test_data *data = NULL;
 
-#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
-	int evthread_flags = 0;
-	if (testcase->flags & TT_ENABLE_PRIORITY_INHERITANCE)
-		evthread_flags |= EVTHREAD_PTHREAD_PRIO_INHERIT;
-#endif
-
-	thread_setup(THREAD_SELF());
-
 #ifndef _WIN32
 	if (testcase->flags & TT_ENABLE_IOCP_FLAG)
 		return (void*)TT_SKIP;
 #endif
 
-	if (testcase->flags & TT_ENABLE_DEBUG_MODE &&
-		!libevent_tests_running_in_debug_mode) {
-		event_enable_debug_mode();
-		libevent_tests_running_in_debug_mode = 1;
-	}
-
 	if (testcase->flags & TT_NEED_THREADS) {
 		if (!(testcase->flags & TT_FORK))
 			return NULL;
 #if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
-		if (evthread_use_pthreads_with_flags(evthread_flags))
+		if (evthread_use_pthreads())
 			exit(1);
 #elif defined(EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED)
 		if (evthread_use_windows_threads())
@@ -286,8 +213,18 @@ basic_test_setup(const struct testcase_t *testcase)
 	}
 
 	if (testcase->flags & TT_NEED_SOCKETPAIR) {
-		if (evutil_socketpair(AF_UNIX, SOCK_STREAM|EVUTIL_SOCK_NONBLOCK, 0, spair) == -1) {
+		if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, spair) == -1) {
 			fprintf(stderr, "%s: socketpair\n", __func__);
+			exit(1);
+		}
+
+		if (evutil_make_socket_nonblocking(spair[0]) == -1) {
+			fprintf(stderr, "fcntl(O_NONBLOCK)");
+			exit(1);
+		}
+
+		if (evutil_make_socket_nonblocking(spair[1]) == -1) {
+			fprintf(stderr, "fcntl(O_NONBLOCK)");
 			exit(1);
 		}
 	}
@@ -325,7 +262,7 @@ basic_test_setup(const struct testcase_t *testcase)
 	return data;
 }
 
-int
+static int
 basic_test_cleanup(const struct testcase_t *testcase, void *ptr)
 {
 	struct basic_test_data *data = ptr;
@@ -443,19 +380,13 @@ struct testgroup_t testgroups[] = {
 	{ "rpc/", rpc_testcases },
 	{ "thread/", thread_testcases },
 	{ "listener/", listener_testcases },
-	{ "watch/", watch_testcases },
-	{ "event_timer/", event_timer_testcases },
 #ifdef _WIN32
 	{ "iocp/", iocp_testcases },
 	{ "iocp/bufferevent/", bufferevent_iocp_testcases },
 	{ "iocp/listener/", listener_iocp_testcases },
-	{ "iocp/http/", http_iocp_testcases },
 #endif
 #ifdef EVENT__HAVE_OPENSSL
-	{ "openssl/", openssl_testcases },
-#endif
-#ifdef EVENT__HAVE_MBEDTLS
-	{ "mbedtls/", mbedtls_testcases },
+	{ "ssl/", ssl_testcases },
 #endif
 	END_OF_GROUPS
 };
@@ -504,7 +435,6 @@ main(int argc, const char **argv)
 #ifdef _WIN32
 	tinytest_skip(testgroups, "http/connection_retry");
 	tinytest_skip(testgroups, "http/https_connection_retry");
-	tinytest_skip(testgroups, "http/read_on_write_error");
 #endif
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
@@ -523,11 +453,6 @@ main(int argc, const char **argv)
 	tinytest_set_aliases(testaliases);
 
 	evutil_weakrand_seed_(&test_weakrand_state, 0);
-
-	if (getenv("EVENT_NO_FILE_BUFFERING")) {
-		setbuf(stdout, NULL);
-		setbuf(stderr, NULL);
-	}
 
 	if (tinytest_main(argc,argv,testgroups))
 		return 1;

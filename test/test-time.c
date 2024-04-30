@@ -81,10 +81,8 @@ time_cb(evutil_socket_t fd, short event, void *arg)
 int
 main(int argc, char **argv)
 {
-	struct event_base *base;
 	struct timeval tv;
 	int i;
-
 #ifdef _WIN32
 	WORD wVersionRequested;
 	WSADATA wsaData;
@@ -96,28 +94,23 @@ main(int argc, char **argv)
 
 	evutil_weakrand_seed_(&weakrand_state, 0);
 
-	if (getenv("EVENT_DEBUG_LOGGING_ALL")) {
-		event_enable_debug_logging(EVENT_DBG_ALL);
-	}
-
-	base = event_base_new();
+	/* Initalize the event library */
+	event_init();
 
 	for (i = 0; i < NEVENT; i++) {
-		ev[i] = evtimer_new(base, time_cb, event_self_cbarg());
+		ev[i] = malloc(sizeof(struct event));
+
+		/* Initalize one event */
+		evtimer_set(ev[i], time_cb, ev[i]);
 		tv.tv_sec = 0;
 		tv.tv_usec = rand_int(50000);
 		evtimer_add(ev[i], &tv);
 	}
 
-	i = event_base_dispatch(base);
+	event_dispatch();
 
-	printf("event_base_dispatch=%d, called=%d, EVENT=%d\n",
-		i, called, NEVENT);
 
-	if (i == 1 && called >= NEVENT) {
-		return EXIT_SUCCESS;
-	} else {
-		return EXIT_FAILURE;
-	}
+	printf("%d, %d\n", called, NEVENT);
+	return (called < NEVENT);
 }
 

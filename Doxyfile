@@ -17,11 +17,11 @@
 # The PROJECT_NAME tag is a single word (or a sequence of words surrounded 
 # by quotes) that should identify the project.
 
-PROJECT_NAME           = $(PROJECT)-$(VERSION)
+PROJECT_NAME           = libevent
 
 # Place all output under 'doxygen/'
 
-OUTPUT_DIRECTORY        = $(DOCDIR)
+OUTPUT_DIRECTORY        = doxygen/
 
 # If the JAVADOC_AUTOBRIEF tag is set to YES then Doxygen 
 # will interpret the first line (until the first dot) of a JavaDoc-style 
@@ -52,7 +52,7 @@ SORT_BRIEF_DOCS        = YES
 # If left blank the directory from which doxygen is run is used as the 
 # path to strip.
 
-STRIP_FROM_PATH        = $(SRCDIR)/include/
+STRIP_FROM_PATH        = include/
 
 #---------------------------------------------------------------------------
 # configuration options related to the input files
@@ -64,26 +64,24 @@ STRIP_FROM_PATH        = $(SRCDIR)/include/
 # with spaces.
 
 INPUT                  = \
-        $(SRCDIR)/include/event2/buffer.h \
-        $(SRCDIR)/include/event2/buffer_compat.h \
-        $(SRCDIR)/include/event2/bufferevent.h \
-        $(SRCDIR)/include/event2/bufferevent_compat.h \
-        $(SRCDIR)/include/event2/bufferevent_ssl.h \
-        $(SRCDIR)/include/event2/dns.h \
-        $(SRCDIR)/include/event2/dns_compat.h \
-        $(SRCDIR)/include/event2/event.h \
-        $(SRCDIR)/include/event2/event_compat.h \
-        $(SRCDIR)/include/event2/http.h \
-        $(SRCDIR)/include/event2/http_compat.h \
-        $(SRCDIR)/include/event2/listener.h \
-        $(SRCDIR)/include/event2/rpc.h \
-        $(SRCDIR)/include/event2/rpc_compat.h \
-        $(SRCDIR)/include/event2/tag.h \
-        $(SRCDIR)/include/event2/tag_compat.h \
-        $(SRCDIR)/include/event2/thread.h \
-        $(SRCDIR)/include/event2/ws.h  \
-        $(SRCDIR)/include/event2/util.h  \
-        $(SRCDIR)/include/event2/watch.h
+        include/event2/buffer.h \
+        include/event2/buffer_compat.h \
+        include/event2/bufferevent.h \
+        include/event2/bufferevent_compat.h \
+        include/event2/bufferevent_ssl.h \
+        include/event2/dns.h \
+        include/event2/dns_compat.h \
+        include/event2/event.h \
+        include/event2/event_compat.h \
+        include/event2/http.h \
+        include/event2/http_compat.h \
+        include/event2/listener.h \
+        include/event2/rpc.h \
+        include/event2/rpc_compat.h \
+        include/event2/tag.h \
+        include/event2/tag_compat.h \
+        include/event2/thread.h \
+        include/event2/util.h
 
 #---------------------------------------------------------------------------
 # configuration options related to the HTML output
@@ -92,7 +90,7 @@ INPUT                  = \
 # If the GENERATE_HTML tag is set to YES (the default) Doxygen will 
 # generate HTML output.
 
-GENERATE_HTML          = $(GENERATE_HTML)
+GENERATE_HTML          = YES
 
 #---------------------------------------------------------------------------
 # configuration options related to the LaTeX output
@@ -101,7 +99,7 @@ GENERATE_HTML          = $(GENERATE_HTML)
 # If the GENERATE_LATEX tag is set to YES (the default) Doxygen will 
 # generate Latex output.
 
-GENERATE_LATEX         = $(GENERATE_LATEX)
+GENERATE_LATEX         = YES
 
 # The LATEX_OUTPUT tag is used to specify where the LaTeX docs will be put. 
 # If a relative path is entered the value of OUTPUT_DIRECTORY will be 
@@ -177,7 +175,7 @@ LATEX_HIDE_INDICES     = NO
 # If the GENERATE_MAN tag is set to YES (the default) Doxygen will 
 # generate man pages
 
-GENERATE_MAN           = $(GENERATE_MAN)
+GENERATE_MAN           = NO
 
 # The MAN_EXTENSION tag determines the extension that is added to 
 # the generated man pages (default is the subroutine's section .3)
@@ -190,7 +188,7 @@ MAN_EXTENSION          = .3
 # only source the real man page, but without them the man command 
 # would be unable to find the correct page. The default is NO.
 
-MAN_LINKS              = NO
+MAN_LINKS              = YES
 
 #---------------------------------------------------------------------------
 # Configuration options related to the preprocessor   

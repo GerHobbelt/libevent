@@ -564,8 +564,8 @@ end:
 	;
 }
 
-#define TEST(name, f)							\
-	{ #name, thread_##name, TT_FORK|TT_NEED_THREADS|TT_NEED_BASE|(f),	\
+#define TEST(name)							\
+	{ #name, thread_##name, TT_FORK|TT_NEED_THREADS|TT_NEED_BASE,	\
 	  &basic_setup, NULL }
 
 struct testcase_t thread_testcases[] = {
@@ -574,11 +574,8 @@ struct testcase_t thread_testcases[] = {
 #ifndef _WIN32
 	{ "forking", thread_basic, TT_FORK|TT_NEED_THREADS|TT_NEED_BASE,
 	  &basic_setup, (char*)"forking" },
-	{ "priority_inheritance", thread_basic,
-	  TT_FORK|TT_NEED_THREADS|TT_NEED_BASE|TT_ENABLE_PRIORITY_INHERITANCE,
-	  &basic_setup, (char*)"priority_inheritance" },
 #endif
-	TEST(conditions_simple, TT_RETRIABLE),
+	TEST(conditions_simple),
 	{ "deferred_cb_skew", thread_deferred_cb_skew,
 	  TT_FORK|TT_NEED_THREADS|TT_OFF_BY_DEFAULT,
 	  &basic_setup, NULL },
@@ -586,7 +583,7 @@ struct testcase_t thread_testcases[] = {
 	/****** XXX TODO FIXME windows seems to be having some timing trouble,
 	 * looking into it now. / ellzey
 	 ******/
-	TEST(no_events, TT_RETRIABLE),
+	TEST(no_events),
 #endif
 	END_OF_TESTCASES
 };

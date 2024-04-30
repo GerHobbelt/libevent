@@ -27,18 +27,9 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
-#if defined EVENT__HAVE_EPOLL || defined EVENT__HAVE_WEPOLL
+#ifdef EVENT__HAVE_EPOLL
 
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <limits.h>
-#include <string.h>
-
-#ifdef EVENT__HAVE_WEPOLL
-#include "wepoll.h"
-#define EPOLLET 0
-#else
 #include <sys/types.h>
 #include <sys/resource.h>
 #ifdef EVENT__HAVE_SYS_TIME_H
@@ -47,6 +38,10 @@
 #include <sys/queue.h>
 #include <sys/epoll.h>
 #include <signal.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #ifdef EVENT__HAVE_FCNTL_H
@@ -54,7 +49,6 @@
 #endif
 #ifdef EVENT__HAVE_SYS_TIMERFD_H
 #include <sys/timerfd.h>
-#endif
 #endif
 
 #include "event-internal.h"
@@ -81,30 +75,18 @@
 #if defined(EVENT__HAVE_SYS_TIMERFD_H) &&			  \
 	defined(EVENT__HAVE_TIMERFD_CREATE) &&			  \
 	defined(HAVE_POSIX_MONOTONIC) && defined(TFD_NONBLOCK) && \
-	defined(TFD_CLOEXEC) && !defined(EVENT__HAVE_EPOLL_PWAIT2)
+	defined(TFD_CLOEXEC)
 /* Note that we only use timerfd if TFD_NONBLOCK and TFD_CLOEXEC are available
    and working.  This means that we can't support it on 2.6.25 (where timerfd
-   was introduced) or 2.6.26, since 2.6.27 introduced those flags. On recent
-   enough systems (with 5.11 and never) and so epoll_pwait2() with nanosecond
-   precision for timeouts, timerfd is not needed at all.
-*/
+   was introduced) or 2.6.26, since 2.6.27 introduced those flags.
+ */
 #define USING_TIMERFD
-#endif
-
-#ifdef EVENT__HAVE_WEPOLL
-typedef HANDLE epoll_handle;
-#define INVALID_EPOLL_HANDLE NULL
-static void close_epoll_handle(HANDLE h) { epoll_close(h); }
-#else
-typedef int epoll_handle;
-#define INVALID_EPOLL_HANDLE -1
-static void close_epoll_handle(int h) { close(h); }
 #endif
 
 struct epollop {
 	struct epoll_event *events;
 	int nevents;
-	epoll_handle epfd;
+	int epfd;
 #ifdef USING_TIMERFD
 	int timerfd;
 #endif
@@ -132,19 +114,6 @@ static int epoll_nochangelist_add(struct event_base *base, evutil_socket_t fd,
 static int epoll_nochangelist_del(struct event_base *base, evutil_socket_t fd,
     short old, short events, void *p);
 
-#ifdef EVENT__HAVE_WEPOLL
-const struct eventop wepollops = {
-	"wepoll",
-	epoll_init,
-	epoll_nochangelist_add,
-	epoll_nochangelist_del,
-	epoll_dispatch,
-	epoll_dealloc,
-	1, /* need reinit */
-	EV_FEATURE_O1|EV_FEATURE_EARLY_CLOSE,
-	0
-};
-#else
 const struct eventop epollops = {
 	"epoll",
 	epoll_init,
@@ -156,8 +125,6 @@ const struct eventop epollops = {
 	EV_FEATURE_ET|EV_FEATURE_O1|EV_FEATURE_EARLY_CLOSE,
 	0
 };
-#endif
-
 
 #define INITIAL_NEVENT 32
 #define MAX_NEVENT 4096
@@ -173,28 +140,26 @@ const struct eventop epollops = {
 static void *
 epoll_init(struct event_base *base)
 {
-	epoll_handle epfd = INVALID_EPOLL_HANDLE;
+	int epfd = -1;
 	struct epollop *epollop;
 
 #ifdef EVENT__HAVE_EPOLL_CREATE1
 	/* First, try the shiny new epoll_create1 interface, if we have it. */
 	epfd = epoll_create1(EPOLL_CLOEXEC);
 #endif
-	if (epfd == INVALID_EPOLL_HANDLE) {
+	if (epfd == -1) {
 		/* Initialize the kernel queue using the old interface.  (The
 		size field is ignored   since 2.6.8.) */
-		if ((epfd = epoll_create(32000)) == INVALID_EPOLL_HANDLE) {
+		if ((epfd = epoll_create(32000)) == -1) {
 			if (errno != ENOSYS)
 				event_warn("epoll_create");
 			return (NULL);
 		}
-#ifndef EVENT__HAVE_WEPOLL
 		evutil_make_socket_closeonexec(epfd);
-#endif
 	}
 
 	if (!(epollop = mm_calloc(1, sizeof(struct epollop)))) {
-		close_epoll_handle(epfd);
+		close(epfd);
 		return (NULL);
 	}
 
@@ -204,19 +169,17 @@ epoll_init(struct event_base *base)
 	epollop->events = mm_calloc(INITIAL_NEVENT, sizeof(struct epoll_event));
 	if (epollop->events == NULL) {
 		mm_free(epollop);
-		close_epoll_handle(epfd);
+		close(epfd);
 		return (NULL);
 	}
 	epollop->nevents = INITIAL_NEVENT;
 
-#ifndef EVENT__HAVE_WEPOLL
 	if ((base->flags & EVENT_BASE_FLAG_EPOLL_USE_CHANGELIST) != 0 ||
 	    ((base->flags & EVENT_BASE_FLAG_IGNORE_ENV) == 0 &&
 		evutil_getenv_("EVENT_EPOLL_USE_CHANGELIST") != NULL)) {
 
 		base->evsel = &epollops_changelist;
 	}
-#endif
 
 #ifdef USING_TIMERFD
 	/*
@@ -226,7 +189,6 @@ epoll_init(struct event_base *base)
 	  event_base, we can try to use timerfd to give them finer granularity.
 	*/
 	if ((base->flags & EVENT_BASE_FLAG_PRECISE_TIMER) &&
-	    !(base->flags & EVENT_BASE_FLAG_EPOLL_DISALLOW_TIMERFD) &&
 	    base->monotonic_timer.monotonic_clock == CLOCK_MONOTONIC) {
 		int fd;
 		fd = epollop->timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK|TFD_CLOEXEC);
@@ -255,8 +217,7 @@ epoll_init(struct event_base *base)
 	}
 #endif
 
-	if (sigfd_init_(base) < 0)
-		evsig_init_(base);
+	evsig_init_(base);
 
 	return (epollop);
 }
@@ -320,15 +281,11 @@ epoll_apply_one_change(struct event_base *base,
 		return 0;
 	}
 
-	if ((ch->read_change|ch->write_change|ch->close_change) & EV_CHANGE_ET)
+	if ((ch->read_change|ch->write_change) & EV_CHANGE_ET)
 		events |= EPOLLET;
 
 	memset(&epev, 0, sizeof(epev));
-#ifdef EVENT__HAVE_WEPOLL
-	epev.data.sock = ch->fd;
-#else
 	epev.data.fd = ch->fd;
-#endif
 	epev.events = events;
 	if (epoll_ctl(epollop->epfd, op, ch->fd, &epev) == 0) {
 		event_debug((PRINT_CHANGES(op, epev.events, ch, "okay")));
@@ -444,14 +401,11 @@ epoll_nochangelist_del(struct event_base *base, evutil_socket_t fd,
 	ch.old_events = old;
 	ch.read_change = ch.write_change = ch.close_change = 0;
 	if (events & EV_WRITE)
-		ch.write_change = EV_CHANGE_DEL |
-		    (events & EV_ET);
+		ch.write_change = EV_CHANGE_DEL;
 	if (events & EV_READ)
-		ch.read_change = EV_CHANGE_DEL |
-		    (events & EV_ET);
+		ch.read_change = EV_CHANGE_DEL;
 	if (events & EV_CLOSED)
-		ch.close_change = EV_CHANGE_DEL |
-		    (events & EV_ET);
+		ch.close_change = EV_CHANGE_DEL;
 
 	return epoll_apply_one_change(base, base->evbase, &ch);
 }
@@ -462,11 +416,7 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 	struct epollop *epollop = base->evbase;
 	struct epoll_event *events = epollop->events;
 	int i, res;
-#if defined(EVENT__HAVE_EPOLL_PWAIT2)
-	struct timespec ts = { 0, 0 };
-#else /* no epoll_pwait2() */
 	long timeout = -1;
-#endif /* EVENT__HAVE_EPOLL_PWAIT2 */
 
 #ifdef USING_TIMERFD
 	if (epollop->timerfd >= 0) {
@@ -496,16 +446,12 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 	} else
 #endif
 	if (tv != NULL) {
-#if defined(EVENT__HAVE_EPOLL_PWAIT2)
-		TIMEVAL_TO_TIMESPEC(tv, &ts);
-#else /* no epoll_pwait2() */
 		timeout = evutil_tv_to_msec_(tv);
 		if (timeout < 0 || timeout > MAX_EPOLL_TIMEOUT_MSEC) {
 			/* Linux kernels can wait forever if the timeout is
 			 * too big; see comment on MAX_EPOLL_TIMEOUT_MSEC. */
 			timeout = MAX_EPOLL_TIMEOUT_MSEC;
 		}
-#endif /* EVENT__HAVE_EPOLL_PWAIT2 */
 	}
 
 	epoll_apply_changes(base);
@@ -513,11 +459,7 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
-#if defined(EVENT__HAVE_EPOLL_PWAIT2)
-	res = epoll_pwait2(epollop->epfd, events, epollop->nevents, tv ? &ts : NULL, NULL);
-#else /* no epoll_pwait2() */
 	res = epoll_wait(epollop->epfd, events, epollop->nevents, timeout);
-#endif /* EVENT__HAVE_EPOLL_PWAIT2 */
 
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
@@ -541,9 +483,7 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 			continue;
 #endif
 
-		if (what & EPOLLERR) {
-			ev = EV_READ | EV_WRITE;
-		} else if ((what & EPOLLHUP) && !(what & EPOLLRDHUP)) {
+		if (what & (EPOLLHUP|EPOLLERR)) {
 			ev = EV_READ | EV_WRITE;
 		} else {
 			if (what & EPOLLIN)
@@ -557,11 +497,7 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 		if (!ev)
 			continue;
 
-#ifdef EVENT__HAVE_WEPOLL
-		evmap_io_active_(base, events[i].data.sock, ev);
-#else
 		evmap_io_active_(base, events[i].data.fd, ev | EV_ET);
-#endif
 	}
 
 	if (res == epollop->nevents && epollop->nevents < MAX_NEVENT) {
@@ -590,8 +526,8 @@ epoll_dealloc(struct event_base *base)
 	evsig_dealloc_(base);
 	if (epollop->events)
 		mm_free(epollop->events);
-	if (epollop->epfd != INVALID_EPOLL_HANDLE)
-		close_epoll_handle(epollop->epfd);
+	if (epollop->epfd >= 0)
+		close(epollop->epfd);
 #ifdef USING_TIMERFD
 	if (epollop->timerfd >= 0)
 		close(epollop->timerfd);
@@ -601,4 +537,4 @@ epoll_dealloc(struct event_base *base)
 	mm_free(epollop);
 }
 
-#endif /* defined EVENT__HAVE_EPOLL || defined EVENT__HAVE_WEPOLL */
+#endif /* EVENT__HAVE_EPOLL */

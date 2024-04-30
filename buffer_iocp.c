@@ -44,7 +44,6 @@
 #include "mm-internal.h"
 
 #include <winsock2.h>
-#include <winerror.h>
 #include <windows.h>
 #include <stdio.h>
 
@@ -69,7 +68,7 @@ struct evbuffer_overlapped {
 	WSABUF buffers[MAX_WSABUFS];
 };
 
-/** Given an evbuffer, return the corresponding evbuffer structure, or NULL if
+/** Given an evbuffer, return the correponding evbuffer structure, or NULL if
  * the evbuffer isn't overlapped. */
 static inline struct evbuffer_overlapped *
 upcast_evbuffer(struct evbuffer *buf)

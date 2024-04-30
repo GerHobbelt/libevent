@@ -35,8 +35,7 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <getopt.h>
-#else /* _WIN32 */
+#else
 #include <sys/socket.h>
 #include <sys/resource.h>
 #endif
@@ -49,6 +48,7 @@
 #include <unistd.h>
 #endif
 #include <errno.h>
+#include <getopt.h>
 #include <event.h>
 #include <evutil.h>
 
@@ -139,7 +139,7 @@ run_once(int num_pipes)
 int
 main(int argc, char **argv)
 {
-#ifdef EVENT__HAVE_SETRLIMIT
+#ifdef HAVE_SETRLIMIT
 	struct rlimit rl;
 #endif
 	int i, c;
@@ -162,7 +162,7 @@ main(int argc, char **argv)
 		}
 	}
 
-#ifdef EVENT__HAVE_SETRLIMIT
+#ifdef HAVE_SETRLIMIT 
 	rl.rlim_cur = rl.rlim_max = num_pipes * 2 + 50;
 	if (setrlimit(RLIMIT_NOFILE, &rl) == -1) {
 		perror("setrlimit");

@@ -98,7 +98,7 @@ const struct eventop selectops = {
 	select_del,
 	select_dispatch,
 	select_dealloc,
-	1, /* need_reinit. */
+	0, /* doesn't need reinit. */
 	EV_FEATURE_FDS,
 	0,
 };
@@ -119,8 +119,7 @@ select_init(struct event_base *base)
 		return (NULL);
 	}
 
-	if (sigfd_init_(base) < 0)
-		evsig_init_(base);
+	evsig_init_(base);
 
 	evutil_weakrand_seed_(&base->weakrand_seed, 0);
 

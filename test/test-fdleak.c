@@ -95,11 +95,8 @@ server_event_cb(struct bufferevent *bev, short events, void *ctx)
 	if (events & BEV_EVENT_ERROR) {
 		my_perror("Error from bufferevent");
 		exit(1);
-	} else if (events & BEV_EVENT_EOF) {
+	} else if (events & (BEV_EVENT_EOF | BEV_EVENT_ERROR)) {
 		bufferevent_free(bev);
-		if (num_requests == MAX_REQUESTS) {
-			event_base_loopbreak(bufferevent_get_base(bev));
-		}
 	}
 }
 
@@ -110,7 +107,8 @@ listener_accept_cb(struct evconnlistener *listener, evutil_socket_t sock,
 {
 	struct event_base *base = evconnlistener_get_base(listener);
 	struct bufferevent *bev = bufferevent_socket_new(base, sock,
-		BEV_OPT_CLOSE_ON_FREE);
+                                                         BEV_OPT_CLOSE_ON_FREE);
+
 	bufferevent_setcb(bev, server_read_cb, NULL, server_event_cb, NULL);
 	bufferevent_enable(bev, EV_READ|EV_WRITE);
 }
@@ -156,9 +154,6 @@ start_loop(void)
 	start_client(base);
 
 	event_base_dispatch(base);
-
-	evconnlistener_free(listener);
-	event_base_free(base);
 }
 
 /*
@@ -183,7 +178,9 @@ client_read_cb(struct bufferevent *bev, void *ctx)
 	bufferevent_free(bev);
 
 	num_requests++;
-	if (++num_requests < MAX_REQUESTS) {
+	if (num_requests == MAX_REQUESTS) {
+		event_base_loopbreak(base);
+	} else {
 		start_client(base);
 	}
 }

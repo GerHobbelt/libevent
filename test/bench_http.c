@@ -101,9 +101,6 @@ main(int argc, char **argv)
 		return (1);
 #endif
 
-	setbuf(stdout, NULL);
-	setbuf(stderr, NULL);
-
 	for (i = 1; i < argc; ++i) {
 		if (*argv[i] != '-')
 			continue;

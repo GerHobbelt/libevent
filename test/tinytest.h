@@ -34,11 +34,8 @@
 #define TT_ENABLED_  (1<<2)
 /** Flag for a test that's off by default. */
 #define TT_OFF_BY_DEFAULT  (1<<3)
-/** Flag for a test that should be runned again in case of failure (but not
- * more then 3 times). */
-#define TT_RETRIABLE	(1<<4)
 /** If you add your own flags, make them start at this point. */
-#define TT_FIRST_USER_FLAG (1<<5)
+#define TT_FIRST_USER_FLAG (1<<4)
 
 typedef void (*testcase_fn)(void *);
 
@@ -92,7 +89,7 @@ char *tinytest_format_hex_(const void *, unsigned long);
 	tinytest_set_flag_(groups, named, 1, TT_SKIP)
 
 /** Run a single testcase in a single group. */
-int testcase_run_one(const struct testgroup_t *,const struct testcase_t *, const int test_attempts);
+int testcase_run_one(const struct testgroup_t *,const struct testcase_t *);
 
 void tinytest_set_aliases(const struct testlist_alias_t *aliases);
 

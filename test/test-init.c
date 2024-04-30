@@ -57,7 +57,7 @@ main(int argc, char **argv)
 	(void) WSAStartup(wVersionRequested, &wsaData);
 #endif
 
-	/* Initialize the event library */
+	/* Initalize the event library */
 	event_init();
 
 	return (0);

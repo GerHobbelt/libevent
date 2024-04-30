@@ -129,10 +129,10 @@ main(int argc, char **argv)
 
 	fprintf(stderr, "Write data to %s\n", fifo);
 #endif
-	/* Initialize the event library */
+	/* Initalize the event library */
 	base = event_base_new();
 
-	/* Initialize one event */
+	/* Initalize one event */
 #ifdef _WIN32
 	evfifo = event_new(base, (evutil_socket_t)socket, EV_READ|EV_PERSIST, fifo_read,
                            event_self_cbarg());
