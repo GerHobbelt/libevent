@@ -417,10 +417,13 @@ int evutil_make_listen_socket_reuseable(evutil_socket_t sock);
 
 /** Do platform-specific operations to make a listener port reusable.
 
-    Specifically, we want to make sure that multiple programs which also
-    set the same socket option will be able to bind, listen at the same time.
+    Specifically, we want to make sure that multiple programs that also
+    set the same socket option will be able to bind, and listen at the
+    same time, for incoming connections/datagrams to be distributed evenly
+    across all of the threads (or processes).
 
-    This is a feature available only to Linux 3.9+
+    This feature is available only on Linux 3.9+, DragonFlyBSD 3.6+,
+    FreeBSD 12.0+, Solaris 11.4 for now.
 
     @param sock The socket to make reusable
     @return 0 on success, -1 on failure
@@ -540,14 +543,14 @@ const char *evutil_socket_error_to_string(int errcode);
 #define evutil_socket_error_to_string(errcode) ...
 #define EVUTIL_INVALID_SOCKET -1
 /**@}*/
-#else /** !EVENT_IN_DOXYGEN_ && !_WIN32 */
+#else /* !EVENT_IN_DOXYGEN_ && !_WIN32 */
 #define EVUTIL_SOCKET_ERROR() (errno)
 #define EVUTIL_SET_SOCKET_ERROR(errcode)		\
 		do { errno = (errcode); } while (0)
 #define evutil_socket_geterror(sock) (errno)
 #define evutil_socket_error_to_string(errcode) (strerror(errcode))
 #define EVUTIL_INVALID_SOCKET -1
-#endif /** !_WIN32 */
+#endif /* !_WIN32 */
 
 
 /**
@@ -659,11 +662,11 @@ struct sockaddr;
 /** Parse an IPv4 or IPv6 address, with optional port, from a string.
 
     Recognized formats are:
-    - [IPv6Address]:port
-    - [IPv6Address]
-    - IPv6Address
-    - IPv4Address:port
-    - IPv4Address
+    - "[IPv6Address]:port"
+    - "[IPv6Address]"
+    - "IPv6Address"
+    - "IPv4Address:port"
+    - "IPv4Address"
 
     If no port is specified, the port in the output is set to 0.
 

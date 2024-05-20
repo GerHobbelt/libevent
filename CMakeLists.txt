@@ -19,7 +19,7 @@
 #       start libevent.sln
 #
 
-cmake_minimum_required(VERSION 3.4 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
 if (POLICY CMP0042)
     cmake_policy(SET CMP0042 NEW) # MACOSX_RPATH is enabled by default.
@@ -1070,7 +1070,7 @@ if(WIN32)
     list(APPEND HDR_PRIVATE WIN32-Code/getopt.h)
 
     set(EVENT__DNS_USE_FTIME_FOR_ID 1)
-    set(LIB_PLATFORM ws2_32 shell32 advapi32 bcrypt)
+    set(LIB_PLATFORM ws2_32 shell32 advapi32 bcrypt iphlpapi)
     add_definitions(
             -D_CRT_SECURE_NO_WARNINGS
             -D_CRT_NONSTDC_NO_DEPRECATE)
@@ -1263,6 +1263,7 @@ macro(add_test_prog prog)
                           event_extra
                           ${ARGN})
 endmacro()
+
 if (NOT EVENT__DISABLE_TESTS)
     #
     # Generate Regress tests.
@@ -1402,6 +1403,12 @@ if (NOT EVENT__DISABLE_TESTS)
         test-dumpevents
         test-ratelim
     )
+
+    if(PTHREADS_AVAILABLE AND EVENT__HAVE_KQUEUE)
+        add_test_prog(test-kq-collision event_pthreads)
+        list(APPEND ALL_TESTPROGS test-kq-collision)
+        add_test(test-test-kq-collision ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-kq-collision)
+    endif()
 
     #
     # We run all tests with the different backends turned on one at a time.
