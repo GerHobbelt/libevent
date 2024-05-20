@@ -101,8 +101,9 @@ LIBEVENT_PKGCONFIG=libevent.pc libevent_core.pc libevent_extra.pc
 # included from other files.
 PLATFORM_DEPENDENT_SRC = \
 	arc4random.c \
-	epoll_sub.c \
 	bufferevent_ssl.c \
+	epoll_sub.c \
+	PrivacyInfo.xcprivacy \
 	test/regress_ssl.c
 
 CMAKE_FILES = \
@@ -135,6 +136,8 @@ DOCUMENTATION_FILES = \
 EXTRA_DIST = \
 	ChangeLog-1.4 \
 	ChangeLog-2.0 \
+	ChangeLog-2.1 \
+	ChangeLog \
 	Doxyfile \
 	LICENSE \
 	autogen.sh \

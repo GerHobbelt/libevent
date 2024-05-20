@@ -59,7 +59,7 @@ jobs:
             EVENT_MATRIX: UBSAN
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -123,7 +123,7 @@ jobs:
           mkdir -p build
           cd build
           echo [cmake]: cmake .. -DEVENT__ENABLE_GCC_WARNINGS=ON $EVENT_CMAKE_OPTIONS
-          cmake .. -DEVENT__ENABLE_GCC_WARNINGS=ON $EVENT_CMAKE_OPTIONS || (rm -rf * && cmake .. $EVENT_CMAKE_OPTIONS)
+          cmake .. -DEVENT__ENABLE_GCC_WARNINGS=ON $EVENT_CMAKE_OPTIONS || (rm -rf * && cmake .. -DEVENT__ENABLE_GCC_WARNINGS=ON $EVENT_CMAKE_OPTIONS)
           cmake --build .
 
       - name: Test
@@ -157,12 +157,12 @@ jobs:
               cmake --build . --target verify
             fi
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure() && matrix.EVENT_MATRIX != 'DIST'
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-build
           path: build
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure() && matrix.EVENT_MATRIX == 'DIST'
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-dist
@@ -180,7 +180,7 @@ jobs:
           - os: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -229,7 +229,7 @@ jobs:
             cd build
             make -j $JOBS verify
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-dist
@@ -256,7 +256,7 @@ jobs:
           - TEST_EXPORT_STATIC
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache Build
         uses: actions/cache@v4
@@ -372,7 +372,7 @@ jobs:
               $host.SetShouldExit($LastExitCode)
             }
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-build
@@ -385,7 +385,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -433,7 +433,7 @@ jobs:
             make verify -j $EVENT_TESTS_PARALLEL 2>&1 '
             D:\a\_temp\msys64\usr\bin\bash.exe -c $script
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: mingw-${{ matrix.EVENT_MATRIX }}-build
@@ -456,7 +456,7 @@ jobs:
           - DISABLE_MM_REPLACEMENT
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -518,7 +518,7 @@ jobs:
             cd build
             ctest --output-on-failure
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: mingw-${{ matrix.EVENT_MATRIX }}-build
@@ -542,7 +542,7 @@ jobs:
           - TEST_EXPORT_SHARED
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache Build
         uses: actions/cache@v4
@@ -556,9 +556,6 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          # NOTE: cmake does not support autodetection of OPENSSL_ROOT_DIR via brew
-          export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
-
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
 
@@ -583,7 +580,7 @@ jobs:
           else
             EVENT_CMAKE_OPTIONS=""
           fi
-          EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=/usr/local/opt/mbedtls@2"
+          EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=`brew --prefix mbedtls@2`"
 
           mkdir -p build
           cd build
@@ -612,7 +609,7 @@ jobs:
               cmake --build . --target verify
             fi
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-build
@@ -627,7 +624,7 @@ jobs:
         os: [macos-latest]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache Build
         uses: actions/cache@v4
@@ -641,8 +638,8 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          export CPPFLAGS="-I/usr/local/opt/mbedtls@2/include"
-          export  LDFLAGS="-L/usr/local/opt/mbedtls@2/lib"
+          export CPPFLAGS="-I`brew --prefix mbedtls@2`/include"
+          export  LDFLAGS="-L`brew --prefix mbedtls@2`/lib"
 
           ./autogen.sh
           mkdir -p build
@@ -662,7 +659,7 @@ jobs:
             cd build
             make -j $JOBS verify
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-build
@@ -686,7 +683,7 @@ jobs:
           - TEST_EXPORT_SHARED
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache Build
         uses: actions/cache@v4
@@ -756,7 +753,7 @@ jobs:
             fi
             EOF
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: freebsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-build
@@ -771,7 +768,7 @@ jobs:
         release: ["13.2"]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache Build
         uses: actions/cache@v4
@@ -809,7 +806,7 @@ jobs:
             make verify
             EOF
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: freebsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-build
@@ -841,7 +838,7 @@ jobs:
           # - TEST_EXPORT_SHARED
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache Build
         uses: actions/cache@v4
@@ -911,7 +908,7 @@ jobs:
             fi
             EOF
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-build
@@ -926,7 +923,7 @@ jobs:
         release: [""]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache Build
         uses: actions/cache@v4
@@ -967,11 +964,55 @@ jobs:
             make verify
             EOF
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: openbsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-build
           path: .
+
+  apple-cmake-job:
+    runs-on: ${{ matrix.os }}
+    if: "!contains(github.event.head_commit.message, 'ci/macos skip') && !contains(github.event.head_commit.message, 'ci/macos/cmake skip')"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest]
+        EVENT_MATRIX:
+          - IOS
+          - TVOS
+          - VISIONOS
+          - WATCHOS
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Build
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v4
+
+      - name: Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Build
+        shell: bash
+        run: |
+          if [ "${{ matrix.EVENT_MATRIX }}" == "IOS" ]; then
+            CMAKE_OSX_SYSROOT="iphoneos"
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "TVOS" ]; then
+            CMAKE_OSX_SYSROOT="appletvos"
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "VISIONOS" ]; then
+            CMAKE_OSX_SYSROOT="xros"
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "WATCHOS" ]; then
+            CMAKE_OSX_SYSROOT="watchos"
+          fi
+
+          echo [cmake]: cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT
+          cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT || (rm -rf build && cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT)
+          cmake --build build -t event_static
 
   # ABI job without deploy
   abi-job:
@@ -979,7 +1020,7 @@ jobs:
     strategy:
       fail-fast: false
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Dependencies
         run:
           sudo apt install
@@ -998,12 +1039,12 @@ jobs:
           ./extra/abi-check/abi_check.sh
         env:
           ABI_CHECK_ROOT: /tmp/le-abi-root
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: build
           path: /tmp/le-abi-root
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         with:
           name: build
           path: /tmp/le-abi-root/work/abi-check
