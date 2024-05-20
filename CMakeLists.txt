@@ -1120,6 +1120,9 @@ if (EVENT__HAVE_OPENSSL)
         INNER_LIBRARIES event_core
         LIBRARIES ${OPENSSL_TARGETS}
         SOURCES ${SRC_OPENSSL})
+    set(LIBEVENT_OPENSSL_DEPENDENCY "find_dependency(OpenSSL)")
+else ()
+    set(LIBEVENT_OPENSSL_DEPENDENCY "")
 endif()
 
 if (EVENT__HAVE_MBEDTLS)
@@ -1127,6 +1130,9 @@ if (EVENT__HAVE_MBEDTLS)
         INNER_LIBRARIES event_core
         LIBRARIES ${MBEDTLS_TARGETS}
         SOURCES ${SRC_MBEDTLS})
+    set(LIBEVENT_MBEDTLS_DEPENDENCY "find_dependency(MbedTLS)")
+else ()
+    set(LIBEVENT_MBEDTLS_DEPENDENCY "")
 endif()
 
 if (EVENT__HAVE_PTHREADS)
@@ -1677,12 +1683,12 @@ configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigVersion.cmake.in
 
 # Install compat headers
 install(FILES ${HDR_COMPAT}
-        DESTINATION "include"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
         COMPONENT dev)
 
 # Install public headers
 install(FILES ${HDR_PUBLIC}
-        DESTINATION "include/event2"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/event2"
         COMPONENT dev)
 
 # Install the configs.
@@ -1710,7 +1716,7 @@ endif()
 # Install the scripts.
 install(PROGRAMS
        ${CMAKE_CURRENT_SOURCE_DIR}/event_rpcgen.py
-       DESTINATION "bin"
+       DESTINATION "${CMAKE_INSTALL_BINDIR}"
        COMPONENT runtime)
 
 # Create documents with doxygen.
