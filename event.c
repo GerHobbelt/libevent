@@ -1677,7 +1677,7 @@ event_process_active_single_queue(struct event_base *base,
 	EVUTIL_ASSERT(activeq != NULL);
 
 	for (evcb = TAILQ_FIRST(activeq); evcb; evcb = TAILQ_FIRST(activeq)) {
-		struct event *ev=NULL;
+		struct event *ev = NULL;
 		if (evcb->evcb_flags & EVLIST_INIT) {
 			ev = event_callback_to_event(evcb);
 
@@ -1698,6 +1698,9 @@ event_process_active_single_queue(struct event_base *base,
 				"closure %d, call %p",
 				(void *)evcb, evcb->evcb_closure, (void *)evcb->evcb_cb_union.evcb_callback));
 		}
+		// We don't want an infinite loop or use of memory after it is freed.
+		// Hence, for next loop iteration, it is expected that `event_queue_remove_active` or `event_del_nolock_` have removed current event from the queue at this point.
+		EVUTIL_ASSERT(evcb != TAILQ_FIRST(activeq));
 
 		if (!(evcb->evcb_flags & EVLIST_INTERNAL))
 			++count;
@@ -2572,7 +2575,7 @@ static int
 evthread_notify_base_default(struct event_base *base)
 {
 	char buf[1];
-	int r;
+	ev_ssize_t r;
 	buf[0] = (char) 0;
 #ifdef _WIN32
 	r = send(base->th_notify_fd[1], buf, 1, 0);
@@ -2589,12 +2592,10 @@ static int
 evthread_notify_base_eventfd(struct event_base *base)
 {
 	int efd = base->th_notify_fd[0];
-	ev_uint64_t msg = 1;
-	ev_uint64_t val;
-
+	eventfd_t val;
 	int ret;
-	for (;;) {
-		ret = eventfd_write(efd, (eventfd_t) msg);
+	for (val=1;;val=1) {
+		ret = eventfd_write(efd, val);
 		if (ret < 0) {
 			// When EAGAIN occurs, the eventfd counter hits the maximum value of the unsigned 64-bit.
 			// We need to first drain the eventfd and then write again.
