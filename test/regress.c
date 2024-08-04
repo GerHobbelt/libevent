@@ -391,7 +391,7 @@ test_simpleclose_rw(void *ptr)
 {
 	/* Test that a close of FD is detected as a read and as a write. */
 	struct event_base *base = event_base_new();
-	evutil_socket_t pair1[2]={-1,-1}, pair2[2] = {-1, -1};
+	evutil_socket_t pair1[2]={EVUTIL_INVALID_SOCKET,EVUTIL_INVALID_SOCKET}, pair2[2] = {EVUTIL_INVALID_SOCKET, EVUTIL_INVALID_SOCKET};
 	evutil_socket_t *to_close[2];
 	struct event *rev=NULL, *wev=NULL, *closeev=NULL;
 	struct timeval tv;
@@ -1369,7 +1369,9 @@ test_signal_while_processing(void)
 #endif // \_WIN32
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
-static void* del_wait_thread(void *arg)
+
+static THREAD_FN
+del_wait_thread(void *arg)
 {
 	struct timeval tv_start, tv_end;
 
@@ -1380,7 +1382,7 @@ static void* del_wait_thread(void *arg)
 	test_timeval_diff_eq(&tv_start, &tv_end, 300);
 
 	end:
-	return NULL;
+	THREAD_RETURN();
 }
 
 static void
@@ -1431,11 +1433,14 @@ test_del_wait(void)
 }
 
 static void null_cb(evutil_socket_t fd, short what, void *arg) {}
-static void* test_del_notify_thread(void *arg)
+
+static THREAD_FN
+test_del_notify_thread(void *arg)
 {
 	event_dispatch();
-	return NULL;
+	THREAD_RETURN();
 }
+
 static void
 test_del_notify(void)
 {

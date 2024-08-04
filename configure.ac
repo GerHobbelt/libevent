@@ -194,21 +194,6 @@ case "${host_os}" in
         ])
 esac
 
-if test "$ac_cv_header_sys_queue_h" = "yes"; then
-	AC_MSG_CHECKING(for TAILQ_FOREACH in sys/queue.h)
-	AC_EGREP_CPP(yes,
-[
-#include <sys/queue.h>
-#ifdef TAILQ_FOREACH
- yes
-#endif
-],	[AC_MSG_RESULT(yes)
-	 AC_DEFINE(HAVE_TAILQFOREACH, 1,
-		[Define if TAILQ_FOREACH is defined in <sys/queue.h>])],
-	AC_MSG_RESULT(no)
-	)
-fi
-
 dnl if we have sys/time.h, check for timer* macros
 if test "$ac_cv_header_sys_time_h" = "yes"; then
 
@@ -219,16 +204,6 @@ AC_EGREP_CPP(yes, [
      yes
     #endif],
     [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_TIMERADD, 1, [Define if timeradd is defined in <sys/time.h>])],
-    [AC_MSG_RESULT(no)]
-)
-
-AC_MSG_CHECKING(for timercmp in sys/time.h)
-AC_EGREP_CPP(yes, [
-    #include <sys/time.h>
-    #ifdef timercmp
-     yes
-    #endif],
-    [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_TIMERCMP, 1,[Define if timercmp is defined in <sys/time.h>])],
     [AC_MSG_RESULT(no)]
 )
 
@@ -274,7 +249,7 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS([accept4 arc4random arc4random_buf arc4random_addrandom eventfd epoll_create1 epoll_pwait2 fcntl getegid geteuid getifaddrs gettimeofday issetugid mach_absolute_time mmap nanosleep pipe pipe2 pread putenv sendfile setenv setrlimit sigaction signal strsignal strlcpy strsep strtok_r strtoll sysctl timerfd_create umask unsetenv usleep getrandom mmap64 socketpair])
+AC_CHECK_FUNCS([accept4 arc4random arc4random_addrandom arc4random_buf epoll_create1 epoll_pwait2 eventfd fcntl getegid geteuid getifaddrs getrandom gettimeofday issetugid mach_absolute_time mmap mmap64 nanosleep pipe pipe2 pread putenv sendfile setenv setrlimit sigaction signal socketpair strlcpy strsep strsignal strtok_r strtoll sysctl timerfd_create umask unsetenv usleep])
 
 AS_IF([test "$bwin32" = "true"],
   AC_CHECK_FUNCS(_gmtime64_s, , [AC_CHECK_FUNCS(_gmtime64)])

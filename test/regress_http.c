@@ -810,7 +810,7 @@ http_bad_request_test(void *arg)
 	bufferevent_write(bev, http_request, strlen(http_request));
 
 	shutdown(fd, EVUTIL_SHUT_WR);
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_usec = 10000;
 	event_base_once(data->base, -1, EV_TIMEOUT, http_badreq_successcb, bev, &tv);
 
@@ -846,7 +846,7 @@ http_bad_request_test(void *arg)
 
 	bufferevent_write(bev, http_request, strlen(http_request));
 
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_usec = 10000;
 	event_base_once(data->base, -1, EV_TIMEOUT, http_badreq_successcb, bev, &tv);
 
@@ -1811,7 +1811,7 @@ http_cancel_test(void *arg)
 	tt_assert(evcon);
 	if (type & INACTIVE_SERVER)
 		evhttp_connection_set_timeout(evcon, 5);
-	
+
 
 	bufev = evhttp_connection_get_bufferevent(evcon);
 	/* Guarantee that we stack in connect() not after waiting EV_READ after
@@ -2820,6 +2820,7 @@ http_bad_header_test(void *ptr)
 
 	tt_want(evhttp_add_header(&headers, "One", "Two") == 0);
 	tt_want(evhttp_add_header(&headers, "One", "Two\r\n Three") == 0);
+	tt_want(evhttp_add_header(&headers, "", "Two") == -1);
 	tt_want(evhttp_add_header(&headers, "One\r", "Two") == -1);
 	tt_want(evhttp_add_header(&headers, "One\n", "Two") == -1);
 	tt_want(evhttp_add_header(&headers, "One", "Two\r") == -1);
@@ -3545,7 +3546,7 @@ http_base_test(void *ptr)
 	const char *http_request;
 	ev_uint16_t port = 0;
 	struct evhttp *http;
-	
+
 	test_ok = 0;
 	base = event_base_new();
 	tt_assert(base);
@@ -5802,7 +5803,7 @@ end:
 		evhttp_free(http);
 }
 
-static void http_add_output_buffer(int fd, short events, void *arg)
+static void http_add_output_buffer(evutil_socket_t fd, short events, void *arg)
 {
 	evbuffer_add(arg, POST_DATA, strlen(POST_DATA));
 }
