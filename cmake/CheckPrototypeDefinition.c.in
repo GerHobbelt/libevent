@@ -15,7 +15,7 @@ static void checkSymbol(void) {
 }
 
 #ifdef __CLASSIC_C__
-int main() {
+int main(void) {
   int ac;
   char*av[];
 #else

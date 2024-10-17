@@ -10,7 +10,7 @@ macro(check_const_exists CONST FILES VARIABLE)
     endforeach()
     set(check_const_exists_source
         "${check_const_exists_source}
-        int main() { (void)${CONST}; return 0; }")
+        int main(void) { (void)${CONST}; return 0; }")
 
     check_c_source_compiles("${check_const_exists_source}" ${VARIABLE})
 
