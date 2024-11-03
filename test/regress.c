@@ -1045,10 +1045,20 @@ signal_cb(evutil_socket_t fd, short event, void *arg)
 }
 
 static void
-test_simplesignal_impl(int find_reorder)
+signal_alarm_fallback(int sig)
+{
+	TT_DIE(("ALRM received not from event loop!"));
+end:
+	;
+}
+
+static void
+test_simple_signal_impl(int find_reorder)
 {
 	struct event ev;
 	struct itimerval itv;
+
+	signal(SIGALRM, signal_alarm_fallback);
 
 	evsignal_set(&ev, SIGALRM, signal_cb, &ev);
 	evsignal_add(&ev, NULL);
@@ -1061,11 +1071,10 @@ test_simplesignal_impl(int find_reorder)
 	memset(&itv, 0, sizeof(itv));
 	itv.it_value.tv_sec = 0;
 	itv.it_value.tv_usec = 100000;
-	if (setitimer(ITIMER_REAL, &itv, NULL) == -1)
-		goto skip_simplesignal;
+	tt_int_op(setitimer(ITIMER_REAL, &itv, NULL), ==, 0);
 
 	event_dispatch();
- skip_simplesignal:
+end:
 	if (evsignal_del(&ev) == -1)
 		test_ok = 0;
 
@@ -1073,17 +1082,48 @@ test_simplesignal_impl(int find_reorder)
 }
 
 static void
-test_simplestsignal(void)
+test_simple_signal(void)
 {
 	setup_test("Simplest one signal: ");
-	test_simplesignal_impl(0);
+	test_simple_signal_impl(0);
 }
 
 static void
-test_simplesignal(void)
+test_simple_signal_re_order(void)
 {
 	setup_test("Simple signal: ");
-	test_simplesignal_impl(1);
+	test_simple_signal_impl(1);
+}
+
+/* signal_free_in_callback */
+static void
+signal_cb_free_event(evutil_socket_t fd, short event, void *arg)
+{
+	struct event *ev = arg;
+	event_free(ev);
+	++test_ok;
+}
+static void
+test_signal_free_in_callback(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_base *base = data->base;
+	struct event *ev;
+
+	ev = evsignal_new(base, SIGUSR1, signal_cb_free_event, event_self_cbarg());
+	evsignal_add(ev, NULL);
+
+	kill(getpid(), SIGUSR1);
+	kill(getpid(), SIGUSR1);
+	test_ok = 0;
+
+	event_base_loop(base, 0);
+	tt_int_op(test_ok, ==, 1);
+	test_ok = 0;
+	return;
+
+end:
+	;
 }
 
 static void
@@ -1094,6 +1134,8 @@ test_multiplesignal(void)
 
 	setup_test("Multiple signal: ");
 
+	signal(SIGALRM, signal_alarm_fallback);
+
 	evsignal_set(&ev_one, SIGALRM, signal_cb, &ev_one);
 	evsignal_add(&ev_one, NULL);
 
@@ -1103,12 +1145,11 @@ test_multiplesignal(void)
 	memset(&itv, 0, sizeof(itv));
 	itv.it_value.tv_sec = 0;
 	itv.it_value.tv_usec = 100000;
-	if (setitimer(ITIMER_REAL, &itv, NULL) == -1)
-		goto skip_simplesignal;
+	tt_int_op(setitimer(ITIMER_REAL, &itv, NULL), ==, 0);
 
 	event_dispatch();
 
- skip_simplesignal:
+end:
 	if (evsignal_del(&ev_one) == -1)
 		test_ok = 0;
 	if (evsignal_del(&ev_two) == -1)
@@ -2031,6 +2072,100 @@ end:
 	event_free(ev[3]);
 	event_free(ev[4]);
 }
+
+static void
+test_event_timeout_lost_cb(evutil_socket_t fd, short events, void *arg)
+{
+	short *res_events = arg;
+	*res_events = events;
+}
+static void
+test_event_timeout_lost(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_base *base = data->base;
+	struct event *ev;
+	short res_events = 0;
+
+	event_base_assert_ok_(base);
+
+	ev = event_new(base, data->pair[0], EV_TIMEOUT|EV_READ, test_event_timeout_lost_cb, &res_events);
+	tt_assert(ev);
+
+	{
+		struct timeval timeout = { 0, 100 };
+		event_add(ev, &timeout);
+	}
+
+	event_active(ev, EV_READ, 1);
+
+	/* Ensure that timeout had been elapsed */
+	{
+		struct timeval delay = { 1, 0 };
+		evutil_usleep_(&delay);
+	}
+
+	event_base_assert_ok_(base);
+	event_base_loop(base, EVLOOP_ONCE|EVLOOP_NONBLOCK);
+	event_base_assert_ok_(base);
+
+	tt_int_op(res_events, ==, EV_READ|EV_TIMEOUT);
+
+end:
+	event_free(ev);
+}
+
+/* del_timeout_notify */
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+static THREAD_FN
+event_base_dispatch_threadcb(void *arg)
+{
+	event_base_dispatch(arg);
+	THREAD_RETURN();
+}
+
+/* Regression test for the case when removing active event with EV_TIMEOUT does
+ * not notifies the base properly like it should */
+static void
+test_del_timeout_notify(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_base *base = data->base;
+	struct event *ev;
+	struct timeval start_tv, now_tv;
+	THREAD_T thread;
+
+	ev = event_new(base, -1, EV_PERSIST, null_cb, NULL);
+	{
+		struct timeval tv;
+		tv.tv_sec = 5;
+		tv.tv_usec = 0;
+		event_add(ev, &tv);
+	}
+
+	THREAD_START(thread, event_base_dispatch_threadcb, base);
+
+	/* FIXME: let's consider that 1 second is enough for the OS to spawn the
+	 * thread and enter event loop */
+	{
+		struct timeval delay = { 1, 0 };
+		evutil_usleep_(&delay);
+	}
+
+	evutil_gettimeofday(&start_tv, NULL);
+	event_del(ev);
+	THREAD_JOIN(thread);
+
+	evutil_gettimeofday(&now_tv, NULL);
+	/* Let's consider that 1 second is enough to notify the base thread */
+	tt_int_op(timeval_msec_diff(&start_tv, &now_tv), <, 1000);
+
+	event_base_assert_ok_(base);
+
+end:
+	event_free(ev);
+}
+#endif
 
 static void
 test_event_base_new(void *ptr)
@@ -3546,6 +3681,7 @@ struct testcase_t main_testcases[] = {
 	BASIC(bad_reentrant, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
 	BASIC(active_later, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR|TT_RETRIABLE),
 	BASIC(event_remove_timeout, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
+	BASIC(event_timeout_lost, TT_FORK|TT_NEED_BASE),
 
 	/* These are still using the old API */
 	LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
@@ -3633,6 +3769,7 @@ struct testcase_t main_testcases[] = {
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 	LEGACY(del_wait, TT_ISOLATED|TT_NEED_THREADS|TT_RETRIABLE),
 	LEGACY(del_notify, TT_ISOLATED|TT_NEED_THREADS),
+	BASIC(del_timeout_notify, TT_NEED_THREADS|TT_FORK|TT_NEED_BASE),
 #endif
 
 	END_OF_TESTCASES
@@ -3647,7 +3784,9 @@ struct testcase_t evtag_testcases[] = {
 	END_OF_TESTCASES
 };
 
-#if defined(__darwin__)
+/* Apparently there is a bug in OSX that leads to subsequent ALRM signal
+ * delievered even though it_interval is set to 0, so let's retry the tests */
+#if defined(__APPLE__)
 #define RETRY_ON_DARWIN TT_RETRIABLE
 #else
 #define RETRY_ON_DARWIN 0
@@ -3655,8 +3794,8 @@ struct testcase_t evtag_testcases[] = {
 
 struct testcase_t signal_testcases[] = {
 #ifndef _WIN32
-	LEGACY(simplestsignal, TT_ISOLATED|RETRY_ON_DARWIN),
-	LEGACY(simplesignal, TT_ISOLATED|RETRY_ON_DARWIN),
+	LEGACY(simple_signal, TT_ISOLATED|RETRY_ON_DARWIN),
+	LEGACY(simple_signal_re_order, TT_ISOLATED|RETRY_ON_DARWIN),
 	LEGACY(multiplesignal, TT_ISOLATED|RETRY_ON_DARWIN),
 	LEGACY(immediatesignal, TT_ISOLATED),
 	LEGACY(signal_dealloc, TT_ISOLATED),
@@ -3666,6 +3805,7 @@ struct testcase_t signal_testcases[] = {
 	LEGACY(signal_restore, TT_ISOLATED),
 	LEGACY(signal_assert, TT_ISOLATED),
 	LEGACY(signal_while_processing, TT_ISOLATED),
+	BASIC(signal_free_in_callback, TT_FORK|TT_NEED_BASE),
 #endif
 	END_OF_TESTCASES
 };

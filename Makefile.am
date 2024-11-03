@@ -108,6 +108,7 @@ PLATFORM_DEPENDENT_SRC = \
 
 CMAKE_FILES = \
 	cmake/AddCompilerFlags.cmake \
+	cmake/AddLinkerFlags.cmake \
 	cmake/AddEventLibrary.cmake \
 	cmake/CheckConstExists.cmake \
 	cmake/CheckFileOffsetBits.c \
@@ -323,6 +324,7 @@ noinst_HEADERS +=				\
 	bufferevent-internal.h		\
 	changelist-internal.h		\
 	compat/sys/queue.h			\
+	compat/sys/tree.h			\
 	defer-internal.h			\
 	epolltable-internal.h		\
 	evbuffer-internal.h			\

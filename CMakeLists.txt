@@ -72,6 +72,7 @@ include(CheckPrototypeDefinition)
 include(CheckFunctionKeywords)
 include(CheckConstExists)
 include(AddCompilerFlags)
+include(AddLinkerFlags)
 include(VersionViaGit)
 
 event_fuzzy_version_from_git()
@@ -212,6 +213,8 @@ Configure_RPATH()
 if (EVENT__ENABLE_VERBOSE_DEBUG)
     add_definitions(-DUSE_DEBUG=1)
 endif()
+
+add_linker_flags(-Wl,-z,max-page-size=16384)
 
 # make it colorful under ninja-build
 if ("${CMAKE_GENERATOR}" STREQUAL "Ninja")
@@ -466,6 +469,7 @@ else()
         sys/ioctl.h
         sys/mman.h
         sys/queue.h
+        sys/tree.h
         sys/select.h
         sys/sendfile.h
         sys/uio.h
@@ -539,8 +543,8 @@ else()
     list(APPEND SYMBOLS_TO_CHECK
         accept4
         arc4random
-        arc4random_addrandom
         arc4random_buf
+        arc4random_stir
         epoll_create
         epoll_create1
         epoll_ctl
@@ -839,7 +843,8 @@ set(HDR_PRIVATE
     openssl-compat.h
     evconfig-private.h
     sha1.h
-    compat/sys/queue.h)
+    compat/sys/queue.h
+    compat/sys/tree.h)
 
 set(HDR_COMPAT
     include/evdns.h
@@ -1099,9 +1104,6 @@ if (EVENT__HAVE_OPENSSL)
         INNER_LIBRARIES event_core
         LIBRARIES ${OPENSSL_TARGETS}
         SOURCES ${SRC_OPENSSL})
-    set(LIBEVENT_OPENSSL_DEPENDENCY "find_dependency(OpenSSL)")
-else ()
-    set(LIBEVENT_OPENSSL_DEPENDENCY "")
 endif()
 
 if (EVENT__HAVE_MBEDTLS)
@@ -1109,17 +1111,20 @@ if (EVENT__HAVE_MBEDTLS)
         INNER_LIBRARIES event_core
         LIBRARIES ${MBEDTLS_TARGETS}
         SOURCES ${SRC_MBEDTLS})
-    set(LIBEVENT_MBEDTLS_DEPENDENCY "find_dependency(MbedTLS)")
-else ()
-    set(LIBEVENT_MBEDTLS_DEPENDENCY "")
 endif()
 
 if (EVENT__HAVE_PTHREADS)
     set(SRC_PTHREADS evthread_pthread.c)
-    add_event_library(event_pthreads
-        INNER_LIBRARIES event_core
-        LIBRARIES Threads::Threads
-        SOURCES ${SRC_PTHREADS})
+    if(ANDROID)
+        add_event_library(event_pthreads
+            INNER_LIBRARIES event_core
+            SOURCES ${SRC_PTHREADS})
+    else()
+        add_event_library(event_pthreads
+            INNER_LIBRARIES event_core
+            LIBRARIES Threads::Threads
+            SOURCES ${SRC_PTHREADS})
+    endif()
 endif()
 
 # library exists for historical reasons; it contains the contents of
@@ -1749,6 +1754,8 @@ message(STATUS "CMAKE_VERBOSE_MAKEFILE:   ${CMAKE_VERBOSE_MAKEFILE}")
 message(STATUS "CMAKE_C_FLAGS:            ${CMAKE_C_FLAGS}")
 message(STATUS "CMAKE_BUILD_TYPE:         ${CMAKE_BUILD_TYPE}")
 message(STATUS "CMAKE_C_COMPILER:         ${CMAKE_C_COMPILER} (id ${CMAKE_C_COMPILER_ID}, clang ${CLANG}, GNUC ${GNUC}, version ${CMAKE_C_COMPILER_VERSION})")
+message(STATUS "CMAKE_SHARED_LINKER_FLAGS:${CMAKE_SHARED_LINKER_FLAGS}")
+message(STATUS "CMAKE_EXE_LINKER_FLAGS:   ${CMAKE_EXE_LINKER_FLAGS}")
 message(STATUS "CMAKE_AR:                 ${CMAKE_AR}")
 message(STATUS "CMAKE_RANLIB:             ${CMAKE_RANLIB}")
 message(STATUS "CMAKE_INSTALL_PREFIX:     ${CMAKE_INSTALL_PREFIX}")
