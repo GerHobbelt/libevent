@@ -2867,10 +2867,26 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 	}
 #ifndef _WIN32
 	else if (evcon->unixsocket) {
-		struct sockaddr_un sockaddr;
-		sockaddr.sun_family = AF_UNIX;
-		strcpy(sockaddr.sun_path, evcon->unixsocket);
-		ret = bufferevent_socket_connect(evcon->bufev, (const struct sockaddr*)&sockaddr, sizeof(sockaddr));
+		// struct sockaddr_un sockaddr;
+		// sockaddr.sun_family = AF_UNIX;
+		// strcpy(sockaddr.sun_path, evcon->unixsocket);
+		// ret = bufferevent_socket_connect(evcon->bufev, (const struct sockaddr*)&sockaddr, sizeof(sockaddr));
+		struct sockaddr_un sin;
+		int len = strlen(evcon->unixsocket);
+		int socklen;
+		sin.sun_family = AF_UNIX;
+		memcpy(sin.sun_path, evcon->unixsocket, len);
+		if (address[0] == '@')
+		{
+			sin->sun_path[0] = 0;
+			socklen = sizeof(sa_family_t) + len;
+		}
+		else
+		{
+			socklen = sizeof(struct sockaddr_un);
+		}
+		sin->sun_path[len] = 0;
+		ret = bufferevent_socket_connect(evcon->bufev, (const struct sockaddr*)&sin, socklen);
 	}
 #endif
 	else {
