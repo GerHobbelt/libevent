@@ -2878,14 +2878,14 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 		memcpy(sin.sun_path, evcon->unixsocket, len);
 		if (address[0] == '@')
 		{
-			sin->sun_path[0] = 0;
+			sin.sun_path[0] = 0;
 			socklen = sizeof(sa_family_t) + len;
 		}
 		else
 		{
 			socklen = sizeof(struct sockaddr_un);
 		}
-		sin->sun_path[len] = 0;
+		sin.sun_path[len] = 0;
 		ret = bufferevent_socket_connect(evcon->bufev, (const struct sockaddr*)&sin, socklen);
 	}
 #endif
