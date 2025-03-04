@@ -2612,7 +2612,7 @@ evhttp_connection_base_bufferevent_unix_new(struct event_base *base, struct buff
 		event_warn("%s: strdup failed", __func__);
 		goto error;
 	}
-
+printf("evcon->unixsocket='%s'\n",evcon->unixsocket);
 	evcon->ai_family = AF_UNIX;
 
 	return (evcon);
@@ -2811,7 +2811,7 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 	const char *address = evcon->address;
 	const struct sockaddr *sa = evhttp_connection_get_addr(evcon);
 	int ret;
-
+puts("evhttp_connection_connect_ 0");
 	if (evcon->state == EVCON_CONNECTING)
 		return (0);
 
@@ -2828,7 +2828,7 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 
 	EVUTIL_ASSERT(!(evcon->flags & EVHTTP_CON_INCOMING));
 	evcon->flags |= EVHTTP_CON_OUTGOING;
-
+puts("evhttp_connection_connect_ 1");
 	if (evcon->bind_address || evcon->bind_port) {
 		int fd = bind_socket(evcon->bind_address, evcon->bind_port,
 			0 /*reuse*/);
@@ -2841,7 +2841,7 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 		if (bufferevent_replacefd(evcon->bufev, fd))
 			return (-1);
 	}
-
+puts("evhttp_connection_connect_ 2");
 	/* Set up a callback for successful connection setup */
 	bufferevent_setcb(evcon->bufev,
 	    NULL /* evhttp_read_cb */,
@@ -2855,10 +2855,11 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 		return (-1);
 
 	evcon->state = EVCON_CONNECTING;
-
+puts("evhttp_connection_connect_ 3");
 	if (evcon->flags & EVHTTP_CON_REUSE_CONNECTED_ADDR &&
 		sa &&
 		(sa->sa_family == AF_INET || sa->sa_family == AF_INET6)) {
+puts("evhttp_connection_connect_ 4");
 		int socklen = sizeof(struct sockaddr_in);
 		if (sa->sa_family == AF_INET6) {
 			socklen = sizeof(struct sockaddr_in6);
@@ -2867,16 +2868,18 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 	}
 #ifndef _WIN32
 	else if (evcon->unixsocket) {
+puts("evhttp_connection_connect_ 5");
 		// struct sockaddr_un sockaddr;
 		// sockaddr.sun_family = AF_UNIX;
 		// strcpy(sockaddr.sun_path, evcon->unixsocket);
 		// ret = bufferevent_socket_connect(evcon->bufev, (const struct sockaddr*)&sockaddr, sizeof(sockaddr));
 		struct sockaddr_un sin;
 		int len = strlen(evcon->unixsocket);
+		printf("'%s' %d\n",evcon->unixsocket,len);
 		int socklen;
 		sin.sun_family = AF_UNIX;
 		memcpy(sin.sun_path, evcon->unixsocket, len);
-		if (address[0] == '@')
+		if (evcon->unixsocket[0] == '@')
 		{
 			sin.sun_path[0] = 0;
 			socklen = sizeof(sa_family_t) + len;
@@ -2890,6 +2893,7 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 	}
 #endif
 	else {
+puts("evhttp_connection_connect_ 6");
 		ret = bufferevent_socket_connect_hostname(evcon->bufev,
 				evcon->dns_base, evcon->ai_family, address, evcon->port);
 	}
